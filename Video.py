@@ -1,4 +1,6 @@
 import os
+import glob
+from tqdm import tqdm
 import random
 import numpy as np
 import pandas as pd
@@ -6,32 +8,34 @@ import matplotlib.pyplot as plt
 
 import torch
 import dlib
-import cv2
+import cv2 as cv
 
 
+# http://spandh.dcs.shef.ac.uk/gridcorpus/ - GRID dataset
 # https://ibug.doc.ic.ac.uk/resources/facial-point-annotations/ - IBUG dataset
 # https://www.pyimagesearch.com/2017/04/03/facial-landmarks-dlib-opencv-python/?_ga=2.191050858.1913902486.1642077624-847301844.1639919914 - face recognition tutorial
 # https://github.com/davisking/dlib-models#shape_predictor_68_face_landmarksdatbz2 - facial landmarks models
 # https://github.com/rizkiarm/LipNet - LipNet - Github
 
+PRETRAINED_FACE_DETECTOR_PATH = './facial-landmarks-models/shape_predictor_68_face_landmarks.dat'
 
 class VideoReader:
     def __init__(self, path):
-        cap = cv2.VideoCapture(path)
+        cap = cv.VideoCapture(path)
         frames = []
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
             # convert the image to grey scale
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
             frames.append(gray)
         cap.release()
-        frames = np.array(frames)
-        self.frames = frames
-        self.video_tensor = torch.Tensor(frames)
+        self.frames = np.array(frames)
+        self.video_tensor = torch.Tensor(self.frames)
 
     def get_tensor(self):
+        self.video_tensor = self.video_tensor.unsqueeze(dim=1)
         return self.video_tensor
 
     def get_frames(self):
@@ -86,7 +90,7 @@ class Padder:
 class Video:
     def __init__(self, video_path):
 
-        self.face_predictor_path = '/content/shape_predictor_68_face_landmarks.dat'
+        self.face_predictor_path = PRETRAINED_FACE_DETECTOR_PATH
         self.detector = dlib.get_frontal_face_detector()
         self.predictor = dlib.shape_predictor(self.face_predictor_path)
 
@@ -116,7 +120,7 @@ class Video:
             mouth_crop_image = self._find_mouth(frame, padder, verbose)
             mouth_frames.append(mouth_crop_image)
         
-        return mouth_frames
+        return np.array(mouth_frames)
 
     def _find_mouth(self, frame, padder, verbose=False):
         rects = self.detector(frame,1)
@@ -135,13 +139,15 @@ class Video:
             print(mouth_left, mouth_right, mouth_top, mouth_bottom)
         return mouth_crop_image
 
-    def plot_random_lips(self):
+    def plot_random_lips(self, fig_path=None):
         frame_index = random.randrange(len(self.frames))
         fig, axs = plt.subplots(1, 2, figsize=(10, 10))
         axs[0].imshow(self.frames[frame_index], cmap='gray')
         axs[0].set_title('Original Frame')
         axs[1].imshow(self.mouth_frames[frame_index], cmap='gray')
         axs[1].set_title('Lips Crop')
+        if fig_path:
+            plt.savefig(fig_path)
 
     def __repr__(self):
         try:
@@ -149,4 +155,24 @@ class Video:
         except:
             mouth_frames_shape = 'unequal'
         return f'frames shape: {self.frames.shape}\n' + f'mouth frames: {len(self.mouth_frames)}, frame shape: {mouth_frames_shape}'
+
+
+class VideoCompressor:
+    def __init__(self, original_path, compressed_path):
+        self.original_path = original_path
+        self.compressed_path = compressed_path
+        self.video_paths = glob.glob(self.original_path + '/*/*')
+
+        for vid_path in tqdm(self.video_paths):
+            vid = Video(vid_path)
+            compressed_vid = vid.mouth_frames
+            new_path = '/'.join(vid_path.split('/')[-2:])
+            file_path = self.compressed_path + '/' + new_path[:-4] + '.npy'
+            dir_path = '/'.join(file_path.split('/')[:-1])
+            os.makedirs(dir_path, exist_ok=True)
+            file = open(file_path, 'w+') # create file
+            file.close()
+            file = open(file_path, 'wb')
+            np.save(file, compressed_vid, allow_pickle=True)
+            file.close()
         
