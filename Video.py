@@ -1,5 +1,6 @@
 import os
 import glob
+import profile
 from tqdm import tqdm
 import random
 import numpy as np
@@ -17,7 +18,10 @@ import cv2 as cv
 # https://github.com/davisking/dlib-models#shape_predictor_68_face_landmarksdatbz2 - facial landmarks models
 # https://github.com/rizkiarm/LipNet - LipNet - Github
 
-PRETRAINED_FACE_DETECTOR_PATH = './facial-landmarks-models/shape_predictor_68_face_landmarks.dat'
+PRETRAINED_SHAPE_PETECTOR_PATH = './facial-landmarks-models/shape_predictor_68_face_landmarks.dat'
+
+DETECTOR = dlib.get_frontal_face_detector()
+PREDICTOR = dlib.shape_predictor(PRETRAINED_SHAPE_PETECTOR_PATH)
 
 class VideoReader:
     def __init__(self, path):
@@ -86,13 +90,36 @@ class Padder:
 
         return int(left), int(right), int(top), int(bottom)
 
+class Rectangle:
+    def __init__(self, rect):
+        self.rect = rect
+        bl = rect.bl_corner()
+        tr = rect.tr_corner()
+        self.bl = (bl.x, bl.y)
+        self.tr = (tr.x, tr.y)
+
+    def get_points(self):
+        return np.array([self.bl[0], self.bl[1], self.tr[0], self.tr[1]])
+
+    def copy(self):
+        return Rectangle(self.rect)
+    
+    def is_close_to(self, other_rect, num_pixles):
+        points1 = self.get_points()
+        points2 = other_rect.get_points()
+        diff = points1 - points2
+        diff = np.abs(diff)
+        diff = diff > num_pixles
+        far_rects_flag = not diff.any()
+        return far_rects_flag
 
 class Video:
     def __init__(self, video_path):
 
-        self.face_predictor_path = PRETRAINED_FACE_DETECTOR_PATH
-        self.detector = dlib.get_frontal_face_detector()
-        self.predictor = dlib.shape_predictor(self.face_predictor_path)
+        self.face_predictor_path = PRETRAINED_SHAPE_PETECTOR_PATH
+        self.detector = DETECTOR
+        self.predictor = PREDICTOR
+
 
         self.video_path = video_path
         self.frames = self._frames_from_video()
@@ -116,28 +143,46 @@ class Video:
         padder = Padder(method='fixed-size-padding', h_pad=MOUTH_WIDTH, v_pad=MOUTH_HEIGHT) # creates lips with the form: width=h_pad, height=v_pad
 
         mouth_frames = []
+        last_face = None
+        last_crop_points = None
         for frame in self.frames:
-            mouth_crop_image = self._find_mouth(frame, padder, verbose)
+            mouth_tup = self._find_mouth(frame, padder, last_face, last_crop_points, verbose)
+            mouth_crop_image, last_face, last_crop_points = mouth_tup
             mouth_frames.append(mouth_crop_image)
         
         return np.array(mouth_frames)
 
-    def _find_mouth(self, frame, padder, verbose=False):
+    def _find_mouth(self, frame, padder, last_face, last_crop_points, verbose=False, efficient=True):
+
+        # Face detection:
         rects = self.detector(frame,1)
-        shape = None
-        for rect in rects:
-            shape = self.predictor(frame, rect) # shape.parts() is 68 (x,y) points
-        if shape is None:  # Detector doesn't detect face, return the original frame
+        if len(rects) == 0:
             return frame
+        
+        # Check if last face is close to the current face
+        current_face = Rectangle(rects[0])
+        if efficient and last_face and current_face.is_close_to(last_face, 5):
+            mouth_left, mouth_right, mouth_top, mouth_bottom = last_crop_points
+            mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
+            return mouth_crop_image, last_face, last_crop_points
+        else:
+            # The last face isn't close to the current face, so we need to recompute
+            # the landmarks and find the lips with new 68 landmarks.
+            shape = None
+            shape = self.predictor(frame, rects[0]) # shape.parts() is 68 (x,y) points
+            if shape is None:  # Detector doesn't detect face, return the original frame
+                return frame
 
-        mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-64 indicate the mouth region
-        np_mouth_points = np.array(mouth_points)
+            mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-64 indicate the mouth region
+            np_mouth_points = np.array(mouth_points)
 
-        mouth_left, mouth_right, mouth_top, mouth_bottom = padder.pad(np_mouth_points)
-        mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
-        if verbose:
-            print(mouth_left, mouth_right, mouth_top, mouth_bottom)
-        return mouth_crop_image
+            mouth_left, mouth_right, mouth_top, mouth_bottom = padder.pad(np_mouth_points)
+            current_crop_points = mouth_left, mouth_right, mouth_top, mouth_bottom
+            mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
+            if verbose:
+                print(mouth_left, mouth_right, mouth_top, mouth_bottom)
+            return mouth_crop_image, current_face, current_crop_points
+
 
     def plot_random_lips(self, fig_path=None):
         frame_index = random.randrange(len(self.frames))
@@ -176,3 +221,6 @@ class VideoCompressor:
             np.save(file, compressed_vid, allow_pickle=True)
             file.close()
         
+
+video_path = 'examples/videos/male/id2_vcd_swwp2s.mpg'
+video = Video(video_path)
