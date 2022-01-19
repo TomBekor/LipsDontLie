@@ -114,7 +114,7 @@ class Rectangle:
         return far_rects_flag
 
 class Video:
-    def __init__(self, video_path):
+    def __init__(self, video_path, efficient=True):
 
         self.face_predictor_path = PRETRAINED_SHAPE_PETECTOR_PATH
         self.detector = DETECTOR
@@ -123,7 +123,7 @@ class Video:
 
         self.video_path = video_path
         self.frames = self._frames_from_video()
-        self.mouth_frames = self._get_mouth_frames()
+        self.mouth_frames = self._get_mouth_frames(efficient=efficient)
         
 
     def _frames_from_video(self):
@@ -131,7 +131,7 @@ class Video:
         frames = reader.get_frames()
         return frames
 
-    def _get_mouth_frames(self, verbose=False):
+    def _get_mouth_frames(self, verbose=False, efficient=True):
         MOUTH_WIDTH = 80
         MOUTH_HEIGHT = 50
 
@@ -146,7 +146,7 @@ class Video:
         last_face = None
         last_crop_points = None
         for frame in self.frames:
-            mouth_tup = self._find_mouth(frame, padder, last_face, last_crop_points, verbose)
+            mouth_tup = self._find_mouth(frame, padder, last_face, last_crop_points, verbose, efficient)
             mouth_crop_image, last_face, last_crop_points = mouth_tup
             mouth_frames.append(mouth_crop_image)
         
@@ -165,6 +165,7 @@ class Video:
             mouth_left, mouth_right, mouth_top, mouth_bottom = last_crop_points
             mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
             return mouth_crop_image, last_face, last_crop_points
+            
         else:
             # The last face isn't close to the current face, so we need to recompute
             # the landmarks and find the lips with new 68 landmarks.
@@ -220,7 +221,3 @@ class VideoCompressor:
             file = open(file_path, 'wb')
             np.save(file, compressed_vid, allow_pickle=True)
             file.close()
-        
-
-video_path = 'examples/videos/male/id2_vcd_swwp2s.mpg'
-video = Video(video_path)
