@@ -4,6 +4,7 @@ import torchvision.models as models
 import math
 
 TRANSFORMER_D_MODEL = 128
+TRANSFORMER_N_HEADS = 4
 
 pretrained_vgg = models.vgg11(pretrained=True)
 
@@ -31,4 +32,25 @@ class Encoder(nn.Module):
         x = x.view(batch_size, num_of_frames, -1)
         return x
 
+class Transformer(nn.Module):
 
+    def __init__(self, target_size: int, d_model: int = TRANSFORMER_D_MODEL, num_heads: int = TRANSFORMER_N_HEADS):
+        super(Transformer, self).__init__()
+        self.d_model = d_model
+        self.embedding = nn.Embedding(target_size, d_model)
+        self.transformer = nn.Transformer(d_model=d_model, batch_first=True, nhead=num_heads)
+        self.generator = nn.Linear(d_model, target_size)
+
+    def forward(self, batch_inputs, batch_targets, batch_in_pad_masks, batch_tgt_pad_masks):
+        batch_inputs *= math.sqrt(self.d_model)
+        batch_inputs = self.pos_encoder(batch_inputs)
+        batch_targets = self.embedding(batch_targets)
+        batch_targets = self.pos_encoder(batch_targets)
+        batch_in_mask = torch.zeros(batch_inputs.size(1), batch_inputs.size(1))
+        batch_in_mask = batch_in_mask.to(device)
+        batch_tgt_mask = nn.Transformer.generate_square_subsequent_mask(batch_targets.size(1))
+        batch_tgt_mask = batch_tgt_mask.to(device)
+        outs = self.transformer(batch_inputs, batch_targets, src_mask=batch_in_mask, tgt_mask=batch_tgt_mask,
+            src_key_padding_mask=batch_in_pad_masks, tgt_key_padding_mask=batch_tgt_pad_masks)
+        outs = self.generator(outs)
+        return outs
