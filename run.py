@@ -3,7 +3,7 @@ from torch import nn, optim
 import datetime
 from dataloader import DataLoader, Tokenizer
 from model import Encoder, Transformer
-from utils import calc_batch_accuracy
+from utils import calc_batch_accuracy, write_metric
 
 VOCABULARY_FILE = 'vocab.txt'
 VIDEOS_DIR = 'npy_videos'
@@ -77,6 +77,7 @@ for epoch in range(epochs):
     print(f'Average epoch acc: {sum(accs)/len(accs)}')
     print(f'')
 
-output_file = open('output.txt', 'w+')
-output_file.write(str(losses))
-output_file.close()
+
+
+write_metric(losses, 'metrics/losses.txt')
+write_metric(accs, 'metrics/accs.txt')

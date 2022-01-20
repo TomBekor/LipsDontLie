@@ -17,7 +17,13 @@ def calc_batch_accuracy(out, batch_targets, vocab_path='vocab.txt', verbose=Fals
         pred_indices = torch.argmax(out[seq], axis=1).cpu().numpy()
         predictions = vocab[pred_indices]
         original_sentence = vocab[batch_targets.cpu().numpy()[seq]]
-        acc = accuracy_score(original_sentence, predictions) # don't calc accuracy on <sos> and <eos>
+        eos_idx = np.where(original_sentence == '<eos>')[0][0] # first <eos> sentence
+        original_sentence = original_sentence[:eos_idx+1]
+        predictions = predictions[:eos_idx+1]
+        if len(predictions) <= 2:
+            acc = 0
+        else:
+            acc = accuracy_score(original_sentence[1:-1], predictions[1:-1]) # don't calc accuracy on <sos> and <eos>
         acc_sum += acc
         if verbose:
             print(f'Seq #{seq}')
@@ -27,11 +33,23 @@ def calc_batch_accuracy(out, batch_targets, vocab_path='vocab.txt', verbose=Fals
     batch_acc = acc_sum/batch_size
     return batch_acc
 
-def plot_metric(values):
+def plot_metric(values, label):
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    plt.plot(values, '-', label='accuracy')
+    plt.plot(values, '-', label=label)
     ax.tick_params(axis='x', colors='w')
     ax.tick_params(axis='y', colors='w')
     plt.legend()
     plt.show()
+
+def float_array_form_file(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        array = lines[0][1:-1]
+        array = array.split(',')
+        array = [float(v.strip()) for v in array]
+    return array
+
+def write_metric(values, output_path):
+    with open(output_path, 'w+') as output_file:
+        output_file.write(str(values))
