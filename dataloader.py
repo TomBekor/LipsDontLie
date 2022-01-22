@@ -1,14 +1,15 @@
 import numpy as np
 import torch
 import glob, os
+import config as cfg
 
 np.random.seed(0)
 
 class DataLoader:
 
     def __init__(self, videos_path, annotations_path, initial_batch_size, shuffle=True):
-        self.video_paths = sorted(glob.glob(videos_path + '/*/*.npy'), key=os.path.basename)
-        self.annotation_paths = sorted(glob.glob(annotations_path + '/*/*.npz'), key=os.path.basename)
+        self.video_paths = sorted(glob.glob(videos_path + '/[1-9]/*.npy'), key=os.path.basename)
+        self.annotation_paths = sorted(glob.glob(annotations_path + '/[1-9]/*.npz'), key=os.path.basename)
         self.data_size = len(self.video_paths)
         self.batch_size = initial_batch_size
         self.shuffle = shuffle
@@ -16,7 +17,6 @@ class DataLoader:
         if shuffle:
             self.load_order = np.random.permutation(self.data_size)
         else:
-
             self.load_order = np.arange(self.data_size)
         self.internal_idx = 0
 
@@ -51,7 +51,7 @@ class DataLoader:
                 targets = list(ann['target'])
             except:
                 continue
-            sample = torch.unsqueeze(sample, dim=1)
+            sample = torch.unsqueeze(sample, dim=1) # gray scale
             seq_words_len = len(targets)
             for idx in range(0,seq_words_len,self.num_of_words):
                 start_frame_idx = start_frames[idx]
@@ -67,7 +67,7 @@ class DataLoader:
 
 class Tokenizer:
 
-    def __init__(self, word2idx, seq_in_size=80, seq_out_size=16):
+    def __init__(self, word2idx, seq_in_size=cfg.SEQUENCE_IN_MAX_LEN, seq_out_size=cfg.SEQUENCE_OUT_MAX_LEN):
         self.word2idx = word2idx
         self.seq_in_size = seq_in_size
         self.seq_out_size = seq_out_size
