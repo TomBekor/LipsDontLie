@@ -2,36 +2,43 @@ import torch
 from torch import nn, optim
 import datetime
 from dataloader import DataLoader, Tokenizer
-from model import Encoder, Transformer
+from model import Backbone, Transformer
 from utils import calc_batch_accuracy, write_metric
+import config as cfg
 
-VOCABULARY_FILE = 'vocab.txt'
-VIDEOS_DIR = 'npy_videos'
-ANNOTATIONS_DIR = 'npy_alignments'
-vocab_file = open(VOCABULARY_FILE, 'r')
-idx2word = vocab_file.read().splitlines()
-word2idx = {word:idx for idx, word in enumerate(idx2word)}
-vocab_file.close()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-encoder = Encoder()
-encoder = encoder.to(device)
-transformer = Transformer(len(idx2word))
-transformer = transformer.to(device)
+# Create the vocabulary
+vocab_file = open(cfg.VOCABULARY_FILE, 'r')
+idx2word = vocab_file.read().splitlines()
+vocab_size = len(idx2word)
+word2idx = {word:idx for idx, word in enumerate(idx2word)}
+vocab_file.close()
 
+# Intialize DataLoader and Tokenizer
+loader = DataLoader(videos_path=cfg.VIDEOS_DIR, annotations_path=cfg.ANNOTATIONS_DIR,
+ initial_batch_size=cfg.INITIAL_BATCH_SIZE, shuffle=True)
 tokenizer = Tokenizer(word2idx)
 
-encoder_optimizer = optim.Adam(encoder.parameters())
+# Initialize the backbone and the transformer models
+backbone = Backbone()
+backbone = backbone.to(device)
+transformer = Transformer(vocab_size)
+transformer = transformer.to(device)
+
+# Initialize optimizers and loss function
+backbone_optimizer = optim.Adam(backbone.parameters())
 transformer_optimizer = optim.SGD(transformer.parameters(), lr=1e-2)
 loss_fn=nn.CrossEntropyLoss(ignore_index=word2idx['<pad>'])
 
-loader = DataLoader(videos_path=VIDEOS_DIR, annotations_path=ANNOTATIONS_DIR, initial_batch_size=1, shuffle=True)
-
-epochs = 1
 losses = []
 accs = []
 
-for epoch in range(epochs):
+# Training loop
+backbone.train()
+transformer.train()
+count_difficulty_increases = 0
+for epoch in range(cfg.EPOCHS):
     print(f'<--------------------- Epoch: {epoch + 1} --------------------->')
     tot_loss = 0
     count = 0
@@ -46,15 +53,16 @@ for epoch in range(epochs):
         batch_in_pad_masks = batch_in_pad_masks.to(device)
         batch_tgt_pad_masks = batch_tgt_pad_masks.to(device)
         
-        encoder_out = encoder.forward(batch_inputs)
-        encoder_out = encoder_out.to(device)
-        out = transformer.forward(encoder_out, batch_targets, batch_in_pad_masks, batch_tgt_pad_masks)
-        
-        loss = loss_fn(out.view(-1,len(idx2word)), batch_targets.view(-1))
-        encoder_optimizer.zero_grad()
+        backbone_out = backbone.forward(batch_inputs)
+        backbone_out = backbone_out.to(device)
+        out = transformer.forward(backbone_out, batch_targets, batch_in_pad_masks, batch_tgt_pad_masks)
+
+        # Backpropagation
+        loss = loss_fn(out.view(-1,vocab_size), batch_targets.view(-1))
+        backbone_optimizer.zero_grad()
         transformer_optimizer.zero_grad()
         loss.backward()
-        encoder_optimizer.step()
+        backbone_optimizer.step()
         transformer_optimizer.step()
 
         # Metrics:
@@ -63,11 +71,12 @@ for epoch in range(epochs):
 
         tot_loss += loss.item()
         count += 1
-        if count % 200 == 0:
+        if count % cfg.INCREASE_DIFFICULTY_ITERS == 0:
             calc_batch_accuracy(out, batch_targets, verbose=True)
-            if count < 1000:
+            if count_difficulty_increases < cfg.MAX_INCREASES:
                 print('\n!!!!!!!!!!!!!! Increasing difficulty !!!!!!!!!!!!!!')
                 loader.increase_difficulty()
+                count_difficulty_increases += 1
         t2 = datetime.datetime.now()
         print(f'Iteration time: {t2-t1} | loss: {loss.item():.3f} | acc: {round(batch_acc*100,2)}%')
         losses.append(tot_loss/count)
