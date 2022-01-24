@@ -114,7 +114,7 @@ class Rectangle:
         return far_rects_flag
 
 class Video:
-    def __init__(self, video_path, efficient=True):
+    def __init__(self, video_path):
 
         self.face_predictor_path = PRETRAINED_SHAPE_PETECTOR_PATH
         self.detector = DETECTOR
@@ -123,7 +123,6 @@ class Video:
 
         self.video_path = video_path
         self.frames = self._frames_from_video()
-        self.mouth_frames = self._get_mouth_frames(efficient=efficient)
         
 
     def _frames_from_video(self):
@@ -131,29 +130,16 @@ class Video:
         frames = reader.get_frames()
         return frames
 
-    def _get_mouth_frames(self, verbose=False, efficient=True):
-        MOUTH_WIDTH = 80
-        MOUTH_HEIGHT = 50
-
-        # padding options.
-        # currently the fixed-size-padding padding is used.
-        padder = Padder(method='no-pad', h_pad=0, v_pad=0)
-        padder = Padder(method='precentage-padding', h_pad=0.15, v_pad=0.15)
-        padder = Padder(method='pixel-padding', h_pad=10, v_pad=10)
-        padder = Padder(method='fixed-size-padding', h_pad=MOUTH_WIDTH, v_pad=MOUTH_HEIGHT) # creates lips with the form: width=h_pad, height=v_pad
-
-        mouth_frames = []
-        last_face = None
-        last_crop_points = None
-        for frame in self.frames:
-            mouth_tup = self._find_mouth(frame, padder, last_face, last_crop_points, verbose, efficient)
-            mouth_crop_image, last_face, last_crop_points = mouth_tup
-            mouth_frames.append(mouth_crop_image)
-        
-        return np.array(mouth_frames)
-
     def _find_mouth(self, frame, padder, last_face, last_crop_points, verbose=False, efficient=True):
-
+        '''
+        Find mouth in frame.
+        frame: a frame of a person.
+        padder: Padder object.
+        last_face: last face bounding box.
+        last_crop_points: last lips bounding box.
+        verbose: bool, if True, print the lips bounding box.
+        efficient: bool, if True, if close, use the last face bounding box.
+        '''
         # Face detection:
         rects = self.detector(frame,1)
         if len(rects) == 0:
@@ -165,7 +151,6 @@ class Video:
             mouth_left, mouth_right, mouth_top, mouth_bottom = last_crop_points
             mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
             return mouth_crop_image, last_face, last_crop_points
-            
         else:
             # The last face isn't close to the current face, so we need to recompute
             # the landmarks and find the lips with new 68 landmarks.
@@ -183,6 +168,39 @@ class Video:
             if verbose:
                 print(mouth_left, mouth_right, mouth_top, mouth_bottom)
             return mouth_crop_image, current_face, current_crop_points
+
+
+    def find_landmarks(self):
+        # middle frame face detection:
+        rects=[]
+        middle_frame_idx = int(len(self.frames)/2)
+        mf_indices = (np.arange(0,len(self.frames), 1) + middle_frame_idx)%len(self.frames)
+
+        # detect middle frame face. if can't, search in middle+1 frame, ...
+        for i in mf_indices:
+            face_detected_frame = self.frames[i]
+            rects = self.detector(face_detected_frame,1)
+            if len(rects) > 0:
+                break
+        
+        # if no face detected.
+        if len(rects) == 0:
+                return self.frames
+        
+        mouth_lmrks = []
+        for i, frame in enumerate(self.frames):
+            # compute 68 landmark.
+            shape = None
+            shape = self.predictor(frame, rects[0]) # shape.parts() is 68 (x,y) points
+            if shape is None:  # Predictor can't find landmarks.
+                print(f"FRAME {i}: Predictor can't find face landmarks.")
+                mouth_lmrks.append(np.array([(0,0)]*20))
+
+            mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-68 indicate the mouth region
+            np_mouth_points = np.array(mouth_points)
+            mouth_lmrks.append(np_mouth_points)
+            
+        self.mouth_lmrks = np.array(mouth_lmrks)
 
 
     def plot_random_lips(self, fig_path=None):
