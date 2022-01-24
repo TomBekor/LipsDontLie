@@ -1,4 +1,5 @@
 import numpy as np
+from sqlalchemy import true
 import torch
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
@@ -20,10 +21,10 @@ def calc_batch_accuracy(out, batch_targets, vocab_path='vocab.txt', verbose=Fals
         eos_idx = np.where(original_sentence == '<eos>')[0][0] # first <eos> sentence
         original_sentence = original_sentence[:eos_idx+1]
         predictions = predictions[:eos_idx+1]
-        if len(predictions) <= 2:
+        if len(predictions) <= 1:
             acc = 0
         else:
-            acc = accuracy_score(original_sentence[1:-1], predictions[1:-1]) # don't calc accuracy on <sos> and <eos>
+            acc = accuracy_score(original_sentence[:-1], predictions[:-1]) # don't calc accuracy on <sos> and <eos>
         acc_sum += acc
         if verbose:
             print(f'Seq #{seq}')
@@ -32,6 +33,15 @@ def calc_batch_accuracy(out, batch_targets, vocab_path='vocab.txt', verbose=Fals
             print(f'Accuracy: {acc}')
     batch_acc = acc_sum/batch_size
     return batch_acc
+
+def predicted_sentence(out, vocab_path='vocab.txt'):
+    vocab = get_vocab_list(vocab_path)
+    pred_indices = torch.argmax(out[0], axis=1).cpu().numpy()
+    predictions = vocab[pred_indices]
+    predictions = list(predictions)
+    predictions = predictions[:predictions.index('<eos>')+1]
+    return predictions
+    
 
 def plot_metric(values, label):
     fig = plt.figure()

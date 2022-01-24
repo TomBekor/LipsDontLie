@@ -8,12 +8,12 @@ np.random.seed(0)
 class DataLoader:
 
     def __init__(self, videos_path, annotations_path, initial_batch_size, shuffle=True):
-        self.video_paths = sorted(glob.glob(videos_path + '/[1-9]/*.npy'), key=os.path.basename)
-        self.annotation_paths = sorted(glob.glob(annotations_path + '/[1-9]/*.npz'), key=os.path.basename)
+        self.video_paths = sorted(glob.glob(videos_path + '/1/*'), key=os.path.basename)
+        self.annotation_paths = sorted(glob.glob(annotations_path + '/1/*.npz'), key=os.path.basename)
         self.data_size = len(self.video_paths)
         self.batch_size = initial_batch_size
         self.shuffle = shuffle
-        self.num_of_words = 1
+        self.num_of_words = 6
         if shuffle:
             self.load_order = np.random.permutation(self.data_size)
         else:
@@ -46,9 +46,9 @@ class DataLoader:
                 sample = np.load(video_path, allow_pickle=True)
                 ann = np.load(annotation_path, allow_pickle=True)
                 sample = torch.Tensor(sample)
-                start_frames = list(ann['start_frames'])
-                end_frames = list(ann['end_frames'])
-                targets = list(ann['target'])
+                start_frames = list(ann['start_frames'])[1:-1] # Ignore SIL
+                end_frames = list(ann['end_frames'])[1:-1]
+                targets = list(ann['target'])[1:-1]
             except:
                 continue
             sample = torch.unsqueeze(sample, dim=1) # gray scale
@@ -59,6 +59,8 @@ class DataLoader:
                 end_frame_idx = end_frames[last_idx]
                 if start_frame_idx == end_frame_idx:
                     continue
+                start_frame_idx = max(start_frame_idx-cfg.FRAME_EPSILON, 0)
+                end_frame_idx = min(len(sample), end_frame_idx+cfg.FRAME_EPSILON+1)
                 batch_samples.append(sample[start_frame_idx:end_frame_idx])
                 batch_targets.append(targets[idx:last_idx+1])
         if len(batch_samples) == 0:
@@ -101,7 +103,9 @@ class Tokenizer:
                 if word in self.word2idx.keys():
                     word_idx = self.word2idx[word]
                     new_target.append(word_idx)
-            new_target = [self.sos_idx] + new_target + [self.eos_idx]
+            # new_target = [self.sos_idx] + new_target + [self.eos_idx]
+            new_target = new_target + [self.eos_idx]
+
 
             # Create the target mask
             tot_target_size = len(new_target)

@@ -60,8 +60,8 @@ class Transformer(nn.Module):
 
         # Transformer architecture and feedforward layer
         self.transformer = nn.Transformer(d_model=d_model, batch_first=True, nhead=num_heads,
-            num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers,
-            dim_feedforward=dim_feedforward, dropout=dropout)
+         num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers,
+         dim_feedforward=dim_feedforward, dropout=dropout)
         self.generator = nn.Linear(d_model, target_size)
 
         # Generate input and target masks
@@ -70,13 +70,13 @@ class Transformer(nn.Module):
         self.batch_tgt_mask = nn.Transformer.generate_square_subsequent_mask(cfg.SEQUENCE_OUT_MAX_LEN)
         self.batch_tgt_mask = self.batch_tgt_mask.to(device)
 
-    def forward(self, batch_inputs: torch.Tensor, batch_targets: torch.Tensor, batch_in_pad_masks: torch.Tensor, batch_tgt_pad_masks: torch.Tensor) -> torch.Tensor:
+    def forward(self, batch_inputs: torch.Tensor, batch_targets: torch.Tensor, batch_in_pad_masks: torch.Tensor, batch_tgt_pad_masks: torch.Tensor, inference_mode: bool =False) -> torch.Tensor:
         ''' 
             Input: batch of sequences of frame embeddings
             Output: token probabilities for each sequence in the batch
             Args:
             batch_inputs: Tensor, shape [batch_size, in_seq_len, embedding_dim]
-            batch_targets:  Tensor, shape [batch_size, out_seq_len]
+            batch_targets:  Tensor, shape [batch_size, out_seq_len, embedding_dim]
             batch_in_pad_masks: Tensor, shape [batch_size, in_seq_len]
             batch_tgt_pad_masks: Tensor, shape [batch_size, out_seq_len] 
             Output:
@@ -89,10 +89,16 @@ class Transformer(nn.Module):
         batch_targets = self.pos_encoder(batch_targets)
 
         # Perform a forward pass in the transformer architecture
-        outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask, tgt_mask=self.batch_tgt_mask,
-            src_key_padding_mask=batch_in_pad_masks, tgt_key_padding_mask=batch_tgt_pad_masks)
-        outs = self.generator(outs)
-        return outs
+        if inference_mode:
+            outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask,
+                src_key_padding_mask=batch_in_pad_masks)
+            outs = self.generator(outs)
+            return outs
+        else:
+            outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask, tgt_mask=self.batch_tgt_mask,
+                src_key_padding_mask=batch_in_pad_masks, tgt_key_padding_mask=batch_tgt_pad_masks)
+            outs = self.generator(outs)
+            return outs
 
 class PositionalEncoding(nn.Module):
 
