@@ -265,7 +265,9 @@ class Video:
                 print(f"FRAME {i}: Predictor can't find face landmarks.")
                 mouth_lmrks.append(np.array([(0,0)]*20))
 
-            mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-68 indicate the mouth region
+            # mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-68 indicate the mouth region
+            mouth_points = [(part.x, part.y) for part in shape.parts()[:]] # points 48-68 indicate the mouth region
+
             np_mouth_points = np.array(mouth_points)
             mouth_lmrks.append(np_mouth_points)
             
@@ -308,3 +310,25 @@ class VideoCompressor:
             file = open(file_path, 'wb')
             np.save(file, compressed_vid, allow_pickle=True)
             file.close()
+
+class LandmarksCompressor:
+    def __init__(self, original_path, compressed_path):
+        self.original_path = original_path
+        self.compressed_path = compressed_path
+        self.video_paths = glob.glob(self.original_path + '/*/*')
+
+        for vid_path in tqdm(self.video_paths):
+            vid = Video(vid_path)
+            vid.find_landmarks()
+            data = vid.mouth_lmrks
+            new_path = '/'.join(vid_path.split('/')[-2:])
+            file_path = self.compressed_path + '/' + new_path[:-4] + '.npy'
+            dir_path = '/'.join(file_path.split('/')[:-1])
+            os.makedirs(dir_path, exist_ok=True)
+            file = open(file_path, 'w+') # create file
+            file.close()
+            file = open(file_path, 'wb')
+            np.save(file, data, allow_pickle=True)
+            file.close()
+
+LandmarksCompressor('./videos', './npy_landmarks')

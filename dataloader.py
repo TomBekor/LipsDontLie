@@ -67,6 +67,52 @@ class DataLoader:
             return self.__next__()
         return batch_samples, batch_targets
 
+class LandmarksDataLoader:
+
+    def __init__(self, landmarks_path, annotations_path, mode, batch_size, shuffle=True):
+        self.landmarks_paths = sorted(glob.glob(f'{landmarks_path}/*/{mode}/*'), key=os.path.basename)
+        self.annotation_paths = sorted(glob.glob(f'{annotations_path}/*/{mode}/*'), key=os.path.basename)
+        self.data_size = len(self.landmarks_paths)
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        if shuffle:
+            self.load_order = np.random.permutation(self.data_size)
+        else:
+            self.load_order = np.arange(self.data_size)
+        self.internal_idx = 0
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        self.internal_idx += self.batch_size
+        if self.internal_idx > self.data_size:
+            if self.shuffle:
+                self.load_order = np.random.permutation(self.data_size)
+            else:
+                self.load_order = np.arange(self.data_size)
+            self.internal_idx = 0
+            raise StopIteration
+        batch_samples = []
+        batch_targets = []
+        for j in range(-self.batch_size, 0):
+            file_idx = self.load_order[self.internal_idx + j]
+            landmarks_path = self.landmarks_paths[file_idx]
+            annotation_path = self.annotation_paths[file_idx]
+            try:
+                sample = np.load(landmarks_path, allow_pickle=True)
+                ann = np.load(annotation_path, allow_pickle=True)
+                sample = torch.Tensor(sample)
+                targets = list(ann)[1:-1] # ignore SIL
+            except:
+                continue
+            sample = sample.view(sample.size(0), -1)
+            batch_samples.append(sample)
+            batch_targets.append(targets)
+        if len(batch_samples) == 0:
+            return self.__next__()
+        return batch_samples, batch_targets
+
 class Tokenizer:
 
     def __init__(self, word2idx, seq_in_size=cfg.SEQUENCE_IN_MAX_LEN, seq_out_size=cfg.SEQUENCE_OUT_MAX_LEN):
@@ -86,7 +132,9 @@ class Tokenizer:
             # Pad the input sequence
             input_size = input.size(0)
             pad_size = self.seq_in_size - input_size
-            padding = torch.zeros(pad_size, input.size(1), input.size(2), input.size(3))
+            padding_shape = list(input.shape)
+            padding_shape[0] = pad_size
+            padding = torch.zeros(padding_shape)
             input = torch.cat((input, padding), dim=0)
             input = torch.unsqueeze(input, dim=0)
             batch_inputs.append(input)
@@ -103,7 +151,6 @@ class Tokenizer:
                 if word in self.word2idx.keys():
                     word_idx = self.word2idx[word]
                     new_target.append(word_idx)
-            # new_target = [self.sos_idx] + new_target + [self.eos_idx]
             new_target = new_target + [self.eos_idx]
 
 

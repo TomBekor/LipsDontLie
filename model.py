@@ -9,7 +9,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 pretrained_vgg = models.vgg11(pretrained=True)
 
 class Backbone(nn.Module):
-
     def __init__(self):
         super(Backbone, self).__init__()
 
@@ -44,6 +43,26 @@ class Backbone(nn.Module):
         # Reshape x back to [batch_size, num_frames, d_model]
         x = x.view(batch_size, num_of_frames, -1)
         return x
+
+class LandmarksNN(nn.Module):
+    def __init__(self, input_dim=cfg.INPUT_DIM, hidden_dim=cfg.HIDDEN_DIM, output_dim=cfg.TRANSFORMER_D_MODEL):
+        super(LandmarksNN, self).__init__()
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+
+    def initialize_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight.data,nonlinearity='relu')
+            if m.bias is not None:
+                nn.init.constant_(m.bias.data, 0)
+
+    def forward(self, x):
+        out = x
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = self.fc2(out)
+        return out
 
 
 class Transformer(nn.Module):
