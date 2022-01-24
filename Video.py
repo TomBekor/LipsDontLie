@@ -265,8 +265,8 @@ class Video:
                 print(f"FRAME {i}: Predictor can't find face landmarks.")
                 mouth_lmrks.append(np.array([(0,0)]*20))
 
-            # mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-68 indicate the mouth region
-            mouth_points = [(part.x, part.y) for part in shape.parts()[:]] # points 48-68 indicate the mouth region
+            mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-68 indicate the mouth region
+            # mouth_points = [(part.x, part.y) for part in shape.parts()[:]] # return all points
 
             np_mouth_points = np.array(mouth_points)
             mouth_lmrks.append(np_mouth_points)
@@ -330,5 +330,3 @@ class LandmarksCompressor:
             file = open(file_path, 'wb')
             np.save(file, data, allow_pickle=True)
             file.close()
-
-LandmarksCompressor('./videos', './npy_landmarks')
