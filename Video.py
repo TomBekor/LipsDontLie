@@ -130,6 +130,75 @@ class Video:
         frames = reader.get_frames()
         return frames
 
+    def super_fast_find_mouth_frames(self):
+        MOUTH_WIDTH = 100
+        MOUTH_HEIGHT = 70
+
+        # middle frame face detection:
+        rects=[]
+        middle_frame_idx = int(len(self.frames)/2)
+        mf_indices = (np.arange(0,len(self.frames), 1) + middle_frame_idx)%len(self.frames)
+
+        # detect middle frame face. if can't, search in middle+1 frame, ...
+        for i in mf_indices:
+            face_detected_frame = self.frames[i]
+            rects = self.detector(face_detected_frame,1)
+            if len(rects) == 0:
+                continue
+            shape = None
+            shape = self.predictor(face_detected_frame, rects[0]) # shape.parts() is 68 (x,y) points
+            if shape:
+                break
+        
+        # if no landmarks found
+        if shape is None:
+            print('Warning: No Landmarks Found.')
+
+        # padding options.
+        # currently the fixed-size-padding padding is used.
+        padder = Padder(method='no-pad', h_pad=0, v_pad=0)
+        padder = Padder(method='precentage-padding', h_pad=0.15, v_pad=0.15)
+        padder = Padder(method='pixel-padding', h_pad=10, v_pad=10)
+        padder = Padder(method='fixed-size-padding', h_pad=MOUTH_WIDTH, v_pad=MOUTH_HEIGHT) # creates lips with the form: width=h_pad, height=v_pad
+
+        mouth_points = [(part.x, part.y) for part in shape.parts()[48:]] # points 48-64 indicate the mouth region
+        np_mouth_points = np.array(mouth_points)
+
+        mouth_left, mouth_right, mouth_top, mouth_bottom = padder.pad(np_mouth_points)
+
+        mouth_frames = []
+        for frame in self.frames:
+            mouth_crop_image = frame[mouth_top:mouth_bottom, mouth_left:mouth_right]
+            mouth_frames.append(mouth_crop_image)
+        self.mouth_frames = np.array(mouth_frames)
+        
+
+    def find_mouth_frames(self, verbose=False, efficient=True):
+        '''
+        Find mouth frames.
+        verbose: print bounding box.
+        efficient: if close, use the same face bounding box.
+        '''
+        MOUTH_WIDTH = 80
+        MOUTH_HEIGHT = 50
+
+        # padding options.
+        # currently the fixed-size-padding padding is used.
+        padder = Padder(method='no-pad', h_pad=0, v_pad=0)
+        padder = Padder(method='precentage-padding', h_pad=0.15, v_pad=0.15)
+        padder = Padder(method='pixel-padding', h_pad=10, v_pad=10)
+        padder = Padder(method='fixed-size-padding', h_pad=MOUTH_WIDTH, v_pad=MOUTH_HEIGHT) # creates lips with the form: width=h_pad, height=v_pad
+
+        mouth_frames = []
+        last_face = None
+        last_crop_points = None
+        for frame in self.frames:
+            mouth_tup = self._find_mouth(frame, padder, last_face, last_crop_points, verbose, efficient)
+            mouth_crop_image, last_face, last_crop_points = mouth_tup
+            mouth_frames.append(mouth_crop_image)
+        
+        self.mouth_frames = np.array(mouth_frames)
+
     def _find_mouth(self, frame, padder, last_face, last_crop_points, verbose=False, efficient=True):
         '''
         Find mouth in frame.
