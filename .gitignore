@@ -8,3 +8,8 @@ Lip_Reading_Sentences_in_the_Wild.pdf
 colab_files
 npy_alignments/
 npy_videos/
+npy_landmarks/
+tests/
+trained_models/
+metrics/
+videos/
