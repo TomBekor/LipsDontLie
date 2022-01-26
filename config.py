@@ -1,24 +1,29 @@
-import math
+''' A configuration file which contains constants
+ and hyperparameters used in our project'''
 
 # Paths
 VOCABULARY_FILE = 'vocab.txt'
-VIDEOS_DIR = 'npy_videos'
+VIDEOS_DIR = 'videos'
 ANNOTATIONS_DIR = 'npy_alignments'
 LANDMARKS_DIR = 'npy_landmarks'
 
-# DataLoader
-FRAME_EPSILON = 3
+# Preprocessing
+PRETRAINED_SHAPE_DETECTOR_PATH = './facial-landmarks-models/shape_predictor_68_face_landmarks.dat'
 
-# General
+# DataLoader
+SPEAKERS = list(range(2,6)) + list(range(22,29))
+# SPEAKERS = list(range(2,6))
+# SPEAKERS = [2]
+WINDOW_SIZE = 5
+
+# Tokenizer
 SEQUENCE_IN_MAX_LEN = 80
 SEQUENCE_OUT_MAX_LEN = 16
 
-# Backbone hyperparameters
-CONV_LAYERS_TO_FREEZE = 0
-
 # Landmarks NN hyperparameters
-INPUT_DIM = 20*2
+INPUT_DIM = 20*2*WINDOW_SIZE
 HIDDEN_DIM = 256
+LMARKS_DROPOUT=0.3
 
 # Transformer hyperparametes
 TRANSFORMER_D_MODEL = 512
@@ -29,8 +34,10 @@ TRANSFORMER_DIM_FEEDFORWARD = 2048
 TRANSFORMER_DROPOUT = 0.1
 
 # Training
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 EPOCHS = 60
 VERBOSE_ITERS=100
-INCREASE_DIFFICULTY_ITERS = 10
-MAX_INCREASES = math.ceil(math.log2(SEQUENCE_OUT_MAX_LEN/BATCH_SIZE))
+
+# trained models
+TRANSFORMER_PATH = 'trained_models/transformer'
+LANDMARKSNN_PATH = 'trained_models/landmarks'
