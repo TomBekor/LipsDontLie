@@ -37,3 +37,5 @@ class AnnotationsCompressor:
             file = open(file_path, 'wb')
             np.save(file, ann, allow_pickle=True)
             file.close()
+
+# AnnotationsCompressor('./alignments', './npy_alignments')

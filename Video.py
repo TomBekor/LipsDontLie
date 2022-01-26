@@ -1,11 +1,10 @@
 import os
 import glob
-import profile
 from tqdm import tqdm
 import random
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
+import config as cfg
 
 import torch
 import dlib
@@ -18,12 +17,11 @@ import cv2 as cv
 # https://github.com/davisking/dlib-models#shape_predictor_68_face_landmarksdatbz2 - facial landmarks models
 # https://github.com/rizkiarm/LipNet - LipNet - Github
 
-PRETRAINED_SHAPE_PETECTOR_PATH = './facial-landmarks-models/shape_predictor_68_face_landmarks.dat'
-
 DETECTOR = dlib.get_frontal_face_detector()
-PREDICTOR = dlib.shape_predictor(PRETRAINED_SHAPE_PETECTOR_PATH)
+PREDICTOR = dlib.shape_predictor(cfg.PRETRAINED_SHAPE_DETECTOR_PATH)
 
 class VideoReader:
+
     def __init__(self, path):
         cap = cv.VideoCapture(path)
         frames = []
@@ -116,7 +114,7 @@ class Rectangle:
 class Video:
     def __init__(self, video_path):
 
-        self.face_predictor_path = PRETRAINED_SHAPE_PETECTOR_PATH
+        self.face_predictor_path = cfg.PRETRAINED_SHAPE_DETECTOR_PATH
         self.detector = DETECTOR
         self.predictor = PREDICTOR
 
@@ -284,32 +282,27 @@ class Video:
         if fig_path:
             plt.savefig(fig_path)
 
+    def plot_random_lips_and_lmrks(self, fig_path=None):
+        frame_index = random.randrange(len(self.frames))
+        fig, axs = plt.subplots(1, 3, figsize=(10, 10))
+        axs[0].imshow(self.frames[frame_index], cmap='gray')
+        axs[0].set_title('Original Frame')
+        axs[1].imshow(self.frames[frame_index], cmap='gray')
+        axs[1].scatter(self.mouth_lmrks[frame_index][:,:-1], self.mouth_lmrks[frame_index][:,1:], s=1)
+        axs[1].set_title('Lips Landmarks')
+        axs[2].imshow(self.mouth_frames[frame_index], cmap='gray')
+        axs[2].set_title('Lips Bounding Box')
+        for ax in axs:
+            ax.axis('off')
+        if fig_path:
+            plt.savefig(fig_path)
+
     def __repr__(self):
         try:
             mouth_frames_shape = np.array(self.mouth_frames)[0].shape
         except:
             mouth_frames_shape = 'unequal'
         return f'frames shape: {self.frames.shape}\n' + f'mouth frames: {len(self.mouth_frames)}, frame shape: {mouth_frames_shape}'
-
-
-class VideoCompressor:
-    def __init__(self, original_path, compressed_path):
-        self.original_path = original_path
-        self.compressed_path = compressed_path
-        self.video_paths = glob.glob(self.original_path + '/*/*')
-
-        for vid_path in tqdm(self.video_paths):
-            vid = Video(vid_path)
-            compressed_vid = vid.mouth_frames
-            new_path = '/'.join(vid_path.split('/')[-2:])
-            file_path = self.compressed_path + '/' + new_path[:-4] + '.npy'
-            dir_path = '/'.join(file_path.split('/')[:-1])
-            os.makedirs(dir_path, exist_ok=True)
-            file = open(file_path, 'w+') # create file
-            file.close()
-            file = open(file_path, 'wb')
-            np.save(file, compressed_vid, allow_pickle=True)
-            file.close()
 
 class LandmarksCompressor:
     def __init__(self, original_path, compressed_path):
@@ -330,3 +323,5 @@ class LandmarksCompressor:
             file = open(file_path, 'wb')
             np.save(file, data, allow_pickle=True)
             file.close()
+
+LandmarksCompressor('./videos', './npy_landmarks')
