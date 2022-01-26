@@ -1,65 +1,23 @@
 import torch
 from torch import nn
-import torchvision.models as models
 import math
 import config as cfg
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-pretrained_vgg = models.vgg11(pretrained=True)
-
-class Backbone(nn.Module):
-    def __init__(self):
-        super(Backbone, self).__init__()
-
-        # Match the number of channels to 3 (RGB)
-        self.up_conv = nn.Conv2d(in_channels=1, out_channels=3, kernel_size=1)
-        # Use pretrained convlution network as a feature extractor
-        self.feature_extractor = pretrained_vgg.features
-        # Freeze feature extractor weights and biases
-        for idx, param in enumerate(self.feature_extractor.parameters()):
-            if idx == cfg.CONV_LAYERS_TO_FREEZE * 2: # Freeze weights & biases
-                break
-            param.requires_grad = False
-        # Apply linear network to match d_model features
-        self.feed_forward = nn.Linear(1024, cfg.TRANSFORMER_D_MODEL)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Input: batch of videos (sequences of frames)
-        Output: token probabilities for each sequence in the batch
-        Args:
-            x: Tensor, shape [batch_size, num_frames, channels, h, w]
-        Output:
-            x: Tensor, shape [batch_size, num_frames, embedding_dim]
-        """
-
-        batch_size, num_of_frames = x.size(0), x.size(1)
-        # Reshape x to [batch_size*num_frames, channels, h, w] to extract feature maps
-        x = x.view(-1, x.size(2), x.size(3), x.size(4))
-        x = self.up_conv(x)
-        x = self.feature_extractor(x)
-        x = self.feed_forward(x.view(x.size(0), -1))
-        # Reshape x back to [batch_size, num_frames, d_model]
-        x = x.view(batch_size, num_of_frames, -1)
-        return x
-
 class LandmarksNN(nn.Module):
-    def __init__(self, input_dim=cfg.INPUT_DIM, hidden_dim=cfg.HIDDEN_DIM, output_dim=cfg.TRANSFORMER_D_MODEL):
+    def __init__(self, input_dim=cfg.INPUT_DIM, hidden_dim=cfg.HIDDEN_DIM,
+     output_dim=cfg.TRANSFORMER_D_MODEL):
         super(LandmarksNN, self).__init__()
-        self.relu = nn.ReLU()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.dropout = nn.Dropout(p=cfg.LMARKS_DROPOUT)
+        self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_dim, output_dim)
-
-    def initialize_weights(self, m):
-        if isinstance(m, nn.Linear):
-            nn.init.kaiming_uniform_(m.weight.data,nonlinearity='relu')
-            if m.bias is not None:
-                nn.init.constant_(m.bias.data, 0)
 
     def forward(self, x):
         out = x
         out = self.fc1(out)
+        out = self.dropout(out)
         out = self.relu(out)
         out = self.fc2(out)
         return out
@@ -67,9 +25,12 @@ class LandmarksNN(nn.Module):
 
 class Transformer(nn.Module):
 
-    def __init__(self, target_size: int, d_model: int = cfg.TRANSFORMER_D_MODEL, \
-     num_heads: int = cfg.TRANSFORMER_N_HEADS, num_encoder_layers: int = cfg.TRANSFORMER_ENCODER_LAYERS, \
-     num_decoder_layers: int = cfg.TRANSFORMER_DECODER_LAYERS, dim_feedforward: int = cfg.TRANSFORMER_DIM_FEEDFORWARD, \
+    def __init__(self, target_size: int,
+     d_model: int = cfg.TRANSFORMER_D_MODEL,
+     num_heads: int = cfg.TRANSFORMER_N_HEADS,
+     num_encoder_layers: int = cfg.TRANSFORMER_ENCODER_LAYERS,
+     num_decoder_layers: int = cfg.TRANSFORMER_DECODER_LAYERS, 
+     dim_feedforward: int = cfg.TRANSFORMER_DIM_FEEDFORWARD,
      dropout: int = cfg.TRANSFORMER_DROPOUT):
         super(Transformer, self).__init__()
         # Positional encoding and Embedding layers
