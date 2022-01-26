@@ -9,8 +9,12 @@ colab_files
 npy_alignments/
 npy_videos/
 npy_landmarks/
+alignments/
 videos/
 tests/
 metrics/
 trained_models/
 figures/
+files.ipynb
+final_models/
+val-plot.ipynb
