@@ -126,7 +126,7 @@ def create_train_test_val(speaker_landmarks_path, speaker_annotations_path, trai
     '''
     # Read paths
     landmarks = sorted(glob.glob(speaker_landmarks_path + '/*.npy'), key=os.path.basename)
-    annotations = sorted(glob.glob(speaker_annotations_path + '/*.npy'), key=os.path.basename)
+    annotations = [speaker_annotations_path + '/' + landmark.split('/')[-1][:-4]+'.a.npy' for landmark in landmarks]
 
     # Create splits
     data_size = len(landmarks)
@@ -156,8 +156,3 @@ def create_train_test_val(speaker_landmarks_path, speaker_annotations_path, trai
 
     # Delete the remaining .npz files
     os.system(f'rm {speaker_annotations_path}/*.npz ')
-
-# speakers = list(range(29,35))
-# print('speakers:',speakers)
-# for speaker in speakers:
-#     create_train_test_val(f'./npy_landmarks/{speaker}', f'./npy_alignments/{speaker}')
