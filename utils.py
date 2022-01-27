@@ -1,6 +1,5 @@
 import numpy as np
 import glob, os
-from sqlalchemy import true
 import torch
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
@@ -16,6 +15,17 @@ def get_vocab_list(vocab_path):
         lines = vocab_file.readlines()
         lines = [line.strip() for line in lines]
     return np.array(lines)
+
+def sliding_windows(array_size: int, win_size: int) -> np.array:
+    ''' Find the indecies correspond to moving windows of size win_size
+    Args:
+    array_size: int, the size of the array to create windows from,
+    win_size: int, the window size,
+    Output: np.array of the indecies '''
+    indices = []
+    for i in range(array_size-win_size+1):
+        indices.append(list(range(i, i+win_size)))
+    return np.array(indices)
 
 def calc_batch_accuracy(out, batch_targets, vocab_path='vocab.txt', verbose=False):
     '''
