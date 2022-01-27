@@ -28,9 +28,6 @@ train_loader = DataLoader(landmarks_path=cfg.LANDMARKS_DIR, annotations_path=cfg
 val_loader = DataLoader(landmarks_path=cfg.LANDMARKS_DIR, annotations_path=cfg.ANNOTATIONS_DIR,
  vocab=vocab, mode='validation', batch_size=100, shuffle=True)
 
-test_loader = DataLoader(landmarks_path=cfg.LANDMARKS_DIR, annotations_path=cfg.ANNOTATIONS_DIR,
- vocab=vocab, mode='test', batch_size=100, shuffle=True)
-
 tokenizer = Tokenizer(word2idx)
 
 landmarks_model = LandmarksNN()
@@ -49,6 +46,7 @@ losses = []
 all_accs = []
 all_loss = []
 val_accs = []
+all_val_accs = []
 
 flip_prob = 0
 training_start = datetime.datetime.now()
@@ -118,7 +116,7 @@ for epoch in range(cfg.EPOCHS):
         all_loss.append(loss.item())
 
         # Scheduler
-        iters_to_scheduler = 50
+        iters_to_scheduler = cfg.SCHEDULER_ITERS
         if len(all_loss) % iters_to_scheduler == 0:
             scheduler_loss = sum(all_loss[-iters_to_scheduler:])/iters_to_scheduler
             print(f'scheduler_loss: {scheduler_loss:.3f}')
@@ -165,15 +163,16 @@ for epoch in range(cfg.EPOCHS):
             preds = preds[:,1:-1]
             acc = accuracy_score(np.array(targets).flatten(), preds.flatten())
             epoch_val_accs.append(acc)
+        all_val_accs += epoch_val_accs
         print(f'Validation accuracy: {np.mean(epoch_val_accs)*100:.2f}%\n')
 
 training_end = datetime.datetime.now()
 print(f'\nTotal training time: {str(training_end-training_start)[:-3]}')
 
 # Write the evaluated metrics to fiales
-write_metric(losses, 'metrics/tain_losses.txt')
-write_metric(all_accs, 'metrics/tain_accs.txt')
-write_metric(val_accs, 'metrics/val_accs.txt')
+write_metric(losses, 'metrics/train_losses.txt')
+write_metric(all_accs, 'metrics/train_accs.txt')
+write_metric(all_val_accs, 'metrics/val_accs.txt')
 
 # Save the trained models
 torch.save(transformer.state_dict(), cfg.TRANSFORMER_SAVE)
