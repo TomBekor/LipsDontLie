@@ -5,11 +5,10 @@ from utils import create_train_test_val
 import config as cfg
 
 speakers = cfg.SPEAKERS
-speakers = list(range(6,16))
 
 # Preprocess and compress videos and alignments.
 Video.LandmarksCompressor(cfg.VIDEOS_DIR, cfg.LANDMARKS_DIR)
-# Annotation.AnnotationsCompressor(cfg.ORIGINAL_ALIGNMENTS_DIR, cfg.ANNOTATIONS_DIR)
+Annotation.AnnotationsCompressor(cfg.ORIGINAL_ALIGNMENTS_DIR, cfg.ANNOTATIONS_DIR)
 
 # For each speaker split landmarks and alignments to train validation and test directories.
 print('speakers:',speakers)
