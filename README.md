@@ -6,7 +6,7 @@
   <img src="https://github.com/rizkiarm/LipNet/blob/master/assets/lipreading.gif?raw=true" height="300">
 </h1>
   <p align="center">
-     <a href="https://github.com/TomBekor">Tom Bekor</a> <a href="https://github.com/MitchellBu">Mitchell Butovsky</a>
+     <a href="https://github.com/TomBekor">Tom Bekor</a>, <a href="https://github.com/MitchellBu">Mitchell Butovsky</a>
   </p>
 
 Final project as a part of Technion's EE 046211 course "Deep Learning" 🌠.
