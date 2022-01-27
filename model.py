@@ -15,6 +15,14 @@ class LandmarksNN(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
+        ''' 
+            Input: batch of sequences of frame landmarks
+            Output: batch of sequences of frame embeddings
+            Args:
+            x: Tensor, shape [batch_size, in_seq_len, tot_lmarks]
+            Output:
+            outs: Tensor, shape [batch_size, in_seq_len, embedding_dim]
+        '''
         out = x
         out = self.fc1(out)
         out = self.dropout(out)
@@ -69,16 +77,10 @@ class Transformer(nn.Module):
         batch_targets = self.pos_encoder(batch_targets)
 
         # Perform a forward pass in the transformer architecture
-        if inference_mode:
-            outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask,
-                src_key_padding_mask=batch_in_pad_masks)
-            outs = self.generator(outs)
-            return outs
-        else:
-            outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask, tgt_mask=self.batch_tgt_mask,
-                src_key_padding_mask=batch_in_pad_masks, tgt_key_padding_mask=batch_tgt_pad_masks)
-            outs = self.generator(outs)
-            return outs
+        outs = self.transformer(batch_inputs, batch_targets, src_mask=self.batch_in_mask, tgt_mask=self.batch_tgt_mask,
+            src_key_padding_mask=batch_in_pad_masks, tgt_key_padding_mask=batch_tgt_pad_masks)
+        outs = self.generator(outs)
+        return outs
 
 class PositionalEncoding(nn.Module):
 
