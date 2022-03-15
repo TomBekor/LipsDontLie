@@ -15,6 +15,7 @@ tests/
 metrics/
 trained_models/
 files.ipynb
-final_models/
 val-plot.ipynb
 drafts/
+old_final_models/
+images/
