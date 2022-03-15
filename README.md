@@ -9,7 +9,7 @@
      <a href="https://github.com/TomBekor">Tom Bekor</a>, <a href="https://github.com/MitchellBu">Mitchell Butovsky</a>
   </p>
 
-Final project as a part of Technion's EE 046211 course "Deep Learning" 🌠.
+Final project as a part of Technion's IEM 097215 "Deep learning for NLP" & EE 046211 "Deep Learning" 🌠.
 
 Implemented in PyTorch :fire:.
 * Animation by <a href = https://github.com/rizkiarm> @rizkiarm </a>.
@@ -46,7 +46,7 @@ The pre-processing mechanisem itself is splitted to the ``Video.py`` which pre-p
 ## Running The Project :runner:
 
 ### Inference :mag_right:
-In order to predict the transcript from some given [GRID corpus](http://spandh.dcs.shef.ac.uk/gridcorpus/ "GRID corpus") videos, put them in `` examples/videos`` path.
+In order to predict the transcript from some given [GRID corpus](http://spandh.dcs.shef.ac.uk/gridcorpus/ "GRID corpus") videos, put them in ``examples/videos`` path.
 Then, just run ``inference.py``.
 It is possible to change the path/make an inference on a single video by changing the last line of `inference.py`.
 
@@ -74,7 +74,7 @@ In order to train the models from scratch:
 |`NumPy`|  `pip install numpy`| `1.19.5`|
 |`matplotlib`|  `pip install matplotlib`| `3.3.4`|
 |`PyTorch`|  `pip install torch`| `1.1.10`|
-|`Open CV`| `pip install opencv-python `| `4.5.4`|
+|`Open CV`| `pip install opencv-python`| `4.5.4`|
 |`DLib`| `pip install dlib` | `19.22.1`|
 |`scikit-learn`|  `pip install scikit-learn`| `0.24.2`|
 |`tqdm`| `pip install tqdm`| `4.62.3`|
