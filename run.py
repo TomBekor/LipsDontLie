@@ -42,25 +42,26 @@ transformer_optimizer = optim.SGD(transformer.parameters(), lr=1e-1)
 landmarks_scheduler = ReduceLROnPlateau(landmarks_optimizer, mode='min', factor=0.1, patience=2, verbose=True)
 transformer_scheduler = ReduceLROnPlateau(transformer_optimizer, mode='min', factor=0.1, patience=2, verbose=True)
 
-losses = []
-all_accs = []
-all_loss = []
-val_accs = []
-all_val_accs = []
+
+all_train_iters_loss = []
+all_train_epoch_loss = []
+all_train_epoch_accs = []
+all_val_epoch_accs = []
 
 flip_prob = 0
 training_start = datetime.datetime.now()
 
+iters = 0
 for epoch in range(cfg.EPOCHS):
     print(f'<------------------- [ Epoch: {epoch + 1} ] ------------------->')
     # Training phase
     landmarks_model.train()
     transformer.train()
     epoch_accs = []
-    tot_loss = 0
-    count = 0
+    epoch_losses = []
     flip_prob += cfg.MAX_RANDOM_FLIP_PROB/cfg.EPOCHS
     for samples, labels in train_loader:
+        iters += 1
         t1 = datetime.datetime.now()
         # Tokenize the samples and targets
         tokenizer_res = tokenizer.tokenize(samples, labels)
@@ -102,37 +103,37 @@ for epoch in range(cfg.EPOCHS):
 
         # Metrics
         batch_acc = calc_batch_accuracy(out, batch_targets)
-        all_accs.append(batch_acc)
         epoch_accs.append(batch_acc)
+        epoch_losses.append(loss.item())
+        all_train_iters_loss.append(loss.item())
 
-        tot_loss += loss.item()
-        count += 1
-        if count % cfg.VERBOSE_ITERS == 0:
+        if iters % cfg.VERBOSE_ITERS == 0:
             calc_batch_accuracy(out, batch_targets, verbose=True)
         t2 = datetime.datetime.now()
         iter_time = str(t2-t1).split(':')[-1][:-3]
         print(f'Iteration time: {iter_time} | loss: {loss.item():.3f} | acc: {round(batch_acc*100,2):.2f}%')
-        losses.append(tot_loss/count)
-        all_loss.append(loss.item())
-
+        
         # Scheduler
         iters_to_scheduler = cfg.SCHEDULER_ITERS
-        if len(all_loss) % iters_to_scheduler == 0:
-            scheduler_loss = sum(all_loss[-iters_to_scheduler:])/iters_to_scheduler
+        if iters % iters_to_scheduler == 0:
+            scheduler_loss = sum(all_train_iters_loss[-iters_to_scheduler:])/iters_to_scheduler
             print(f'scheduler_loss: {scheduler_loss:.3f}')
             landmarks_scheduler.step(scheduler_loss)
             transformer_scheduler.step(scheduler_loss)
+
+    all_train_epoch_loss.append(np.mean(epoch_losses))
+    all_train_epoch_accs.append(np.mean(epoch_accs))
         
     print(f'-----------------------------------------------------')
     print(f'                     [ Metrics ]                     ')
-    print(f'Average epoch loss: {tot_loss/count:.3f}')
-    print(f'Average epoch acc: {sum(epoch_accs)/len(epoch_accs)*100:.2f}%')
+    print(f'Average epoch loss: {np.mean(epoch_losses):.3f}')
+    print(f'Average epoch acc: {np.mean(epoch_accs)*100:.2f}%')
 
     # Evaluation phase
     landmarks_model.eval()
     transformer.eval()
     with torch.no_grad():
-        epoch_val_accs = []
+        epoch_accs = []
         for samples, targets in val_loader:
             # Start with <sos> token
             preds = np.array([['<sos>']]*len(samples))
@@ -162,17 +163,18 @@ for epoch in range(cfg.EPOCHS):
             # Accuracy evaluation
             preds = preds[:,1:-1]
             acc = accuracy_score(np.array(targets).flatten(), preds.flatten())
-            epoch_val_accs.append(acc)
-        all_val_accs += epoch_val_accs
-        print(f'Validation accuracy: {np.mean(epoch_val_accs)*100:.2f}%\n')
+            epoch_accs.append(acc)
+
+        all_val_epoch_accs.append(np.mean(epoch_accs))
+        print(f'Validation accuracy: {np.mean(epoch_accs)*100:.2f}%\n')
 
 training_end = datetime.datetime.now()
 print(f'\nTotal training time: {str(training_end-training_start)[:-3]}')
 
-# Write the evaluated metrics to fiales
-write_metric(losses, 'metrics/train_losses.txt')
-write_metric(all_accs, 'metrics/train_accs.txt')
-write_metric(all_val_accs, 'metrics/val_accs.txt')
+# Write the evaluated metrics to files
+np.save('metrics/train_losses', all_train_epoch_loss)
+np.save('metrics/train_accs', all_train_epoch_accs)
+np.save('metrics/val_accs', all_val_epoch_accs)
 
 # Save the trained models
 torch.save(transformer.state_dict(), cfg.TRANSFORMER_SAVE)
