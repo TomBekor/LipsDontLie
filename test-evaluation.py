@@ -5,6 +5,7 @@ from model import LandmarksNN, Transformer
 from utils import get_vocab_list
 import config as cfg
 from sklearn.metrics import accuracy_score
+from tqdm import tqdm
 
 torch.manual_seed(0)
 
@@ -14,6 +15,13 @@ Loads pretrained models and prints accuracy on the test-set.
 
 landmarksNN_model_path = cfg.LANDMARKSNN_LOAD
 transformer_model_path = cfg.TRANSFORMER_LOAD
+
+print()
+print(f'Pretrained models:')
+print(landmarksNN_model_path)
+print(transformer_model_path)
+print()
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -38,11 +46,21 @@ transformer = Transformer(vocab_size)
 transformer.load_state_dict(torch.load(transformer_model_path))
 transformer.to(device)
 
+def pytorch_model_num_of_params(torch_model):
+    return sum(p.numel() for p in torch_model.parameters() if p.requires_grad)
+
+lnmarks_params = pytorch_model_num_of_params(landmarks_model)
+transformer_params = pytorch_model_num_of_params(transformer)
+print(f'landmarks_model number of parameters: {lnmarks_params:,}')
+print(f'transformer_model number of parameters: {transformer_params:,}')
+print(f'model total number of parameters: {lnmarks_params + transformer_params:,}')
+print()
+
 landmarks_model.eval()
 transformer.eval()
 with torch.no_grad():
     test_accs = []
-    for samples, targets in test_loader:
+    for samples, targets in tqdm(test_loader):
         # Start with <sos> token
         preds = np.array([['<sos>']]*len(samples))
         # Forward
@@ -70,4 +88,7 @@ with torch.no_grad():
         preds = preds[:,1:-1]
         acc = accuracy_score(np.array(targets).flatten(), preds.flatten())
         test_accs.append(acc)
+    
+    print()
     print(f'Test accuracy: {round(100*np.mean(test_accs),2)}%')
+    print()
