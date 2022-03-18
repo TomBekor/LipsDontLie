@@ -1,3 +1,4 @@
+import os
 '''
 A configuration file which contains constants
 and hyperparameters used in our project
@@ -43,6 +44,8 @@ MAX_RANDOM_FLIP_PROB = 0.0
 SCHEDULER_ITERS=50
 
 # trained models
+os.makedirs('final_models', exist_ok=True)
+os.makedirs('trained_models', exist_ok=True)
 TRANSFORMER_BEST = 'final_models/trained_models_81/transformer'
 LANDMARKSNN_BEST = 'final_models/trained_models_81/landmarks'
 TRANSFORMER_SAVE = 'trained_models/transformer'

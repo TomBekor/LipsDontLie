@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn, optim
 import numpy as np
@@ -172,6 +173,7 @@ training_end = datetime.datetime.now()
 print(f'\nTotal training time: {str(training_end-training_start)[:-3]}')
 
 # Write the evaluated metrics to files
+os.makedirs('metrics', exist_ok=True)
 np.save('metrics/train_losses', all_train_epoch_loss)
 np.save('metrics/train_accs', all_train_epoch_accs)
 np.save('metrics/val_accs', all_val_epoch_accs)
