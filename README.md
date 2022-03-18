@@ -1,7 +1,7 @@
-# Lips Don't Lie: FAST Deep Learning model to read lips
+
+# Lips Don't Lie: FAST Visual-Lip-Reading Deep Learning model
 
 <h1 align="center">
-
   <br>
   <img src="https://github.com/rizkiarm/LipNet/blob/master/assets/lipreading.gif?raw=true" height="300">
 </h1>
@@ -45,6 +45,9 @@ The pre-processing mechanisem itself is splitted to the ``Video.py`` which pre-p
   
 ## Running The Project :runner:
 
+### GRID corpus
+
+
 ### Inference :mag_right:
 In order to predict the transcript from some given [GRID corpus](http://spandh.dcs.shef.ac.uk/gridcorpus/ "GRID corpus") videos, put them in ``examples/videos`` path.
 Then, just run ``inference.py``.
@@ -53,18 +56,28 @@ It is possible to change the path/make an inference on a single video by changin
 **Important: remember to download our pretrained models [here](https://drive.google.com/drive/folders/1-udLFTgkJSemyzciD0PJwOZvXNJ50AZS?usp=sharing "here"), or create them by running ``run.py``**
 
 ### Training :weight_lifting:
-In order to train the models from scratch:
-1. Download the desired videos to train on from the GRID corpus which can be found [here](http://spandh.dcs.shef.ac.uk/gridcorpus/ "here"). Make sure that you download the **high quality videos** and the corresponding word alignments.
+In order to train the model with the preprocessed videos:
 
-2. Put the videos in the project directory according to the following path format: ``videos/[speaker_id]/[video.mpg]``. 
+ 1. Unzip the preprocessed GRID dataset:
+ On Linux, use the command `unzip npy_folders.zip`.
+Make sure to have both `npy_landmarks`, and `npy_alignments` directories located in your project root.
+2. Run `run.py` - Training and validation metrics will be save under the `metrics` directory.
+3. To check the test-set word accuracy, run `test-evaluation.py`.
+
+In order to train the models from **scratch**:
+4. Download the desired videos to train on from the GRID corpus which can be found [here](http://spandh.dcs.shef.ac.uk/gridcorpus/ "here"). Make sure that you download the **high quality videos** and the corresponding word alignments.
+
+5. Put the videos in the project directory according to the following path format: ``videos/[speaker_id]/[video.mpg]``. 
 
     Put the alignments according to the following path format: ``alignments/[speaker_id]/[alignment.align]``.  
 
-3. Change the ``SPEAKERS`` attribute in the ``config.py`` file to a list containing all the speaker ids to train on. 
+6. Change the ``SPEAKERS`` attribute in the ``config.py`` file to a list containing all the speaker ids to train on. 
 
-4. Run ``preprocess.py``. This might take a while. 
+7. Run ``preprocess.py``. This might take a while
 
-5. Run ``run.py``.
+8. Run ``run.py``.
+
+10. To check the test-set word accuracy, run `test-evaluation.py`.
 
 ## Libraries to Install :books:
 
