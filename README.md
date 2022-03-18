@@ -45,9 +45,6 @@ The pre-processing mechanisem itself is splitted to the ``Video.py`` which pre-p
   
 ## Running The Project :runner:
 
-### GRID corpus
-
-
 ### Inference :mag_right:
 In order to predict the transcript from some given [GRID corpus](http://spandh.dcs.shef.ac.uk/gridcorpus/ "GRID corpus") videos, put them in ``examples/videos`` path.
 Then, just run ``inference.py``.
